@@ -89,20 +89,20 @@ exports.updateAdmin = (request, response) => {
         })
 }
 /**create function to delete data admin */
-exports.deleteAdmin = (request,response) =>{
+exports.deleteAdmin = (request, response) => {
     let idAdmin = request.params.id
 
-    adminModel.destroy({where:{id: idAdmin}})
-    .then(result =>{
-        return response.json({
-            succes: true,
-            message:`Data admin berhasil dihapus`
+    adminModel.destroy({ where: { id: idAdmin } })
+        .then(result => {
+            return response.json({
+                succes: true,
+                message: `Data admin berhasil dihapus`
+            })
         })
-    })
-    .catch(error =>{
-        return response.json({
-            succes:false,
-            message:error.message
+        .catch(error => {
+            return response.json({
+                succes: false,
+                message: error.message
+            })
         })
-    })
 }

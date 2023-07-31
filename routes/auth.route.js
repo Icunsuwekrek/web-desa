@@ -1,10 +1,8 @@
-// const express = require('express')
-// const app = express()
-// app.use(express.json())
+const express = require(`express`)
+const app = express()
 
-// /**memanggil auth from controller*/
-// const authController = require('../controllers/auth.controller')
+app.use(express.json())
+const {authenticate} = require(`..//controller/auth.controller`)
+app.post(`/`, authenticate)
 
-// /**create route for auth */
-// app.post('/auth',authController.authentication)
-// module.exports = app
+module.exports = app

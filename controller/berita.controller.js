@@ -1,12 +1,35 @@
 const { request, response } = require("express")
 const res = require("express/lib/response")
 const beritaModel = require(`../models/index`).berita
-const Op = require(`sequelize`).Op
+const {Op} = require("sequelize")
 const path = require(`path`)
 const fs = require(`fs`)
 const { error } = require("console")
 
-const upload = require(`./upload-tumbnail.controller`).single(`tumbnail`)
+const upload = require (`./upload-tumbnail`)
+const Joi = require("joi")
+
+const validateBerita = (input) => {
+    let rules = Joi.object().keys({
+        isi_artikel: Joi.string().required(),
+        judul: Joi.string().required()
+    })
+    let {error} = rules.validate(input)
+    if (error) {
+        let message = error
+        .details
+        .map(item => item.message)
+        .join(`,`)
+        
+        return{
+            status:false,
+            message:message
+        }
+    }
+    return {
+        status:true
+    }
+}
 
 exports.getAllBerita = async (request, response) => {
     let berita = await beritaModel.findAll()
@@ -36,39 +59,48 @@ exports.findBerita = async (request, response) => {
 }
 exports.addBerita = (request, response) => {
     /**run function upload */
-    upload(request, response, async error => {
-        /**check if there are error when upload */
-        if (error) {
-            return response.json({ message: error })
-        }
-        if (!request.file) {
+    try {
+        const uploadBerita = upload.single(`tumbnail`)
+        uploadBerita(request, response, async error => {
+            if (error) {
+                return response.json({
+                    status: false,
+                    message: error
+                })
+            }
+
+            if (!request.file) {
+                return response.json({
+                    status: false,
+                    message: ` Tidak ada file yang di upload`
+                })
+            }
+
+            let resultValidation = validateBerita(request.body)
+            if (resultValidation.status == false) {
+                return response.json({
+                    status: false,
+                    message: resultValidation.message
+                })
+            }
+            request.body.gambar = request.file.filename
+
+            await beritaModel.create(request.body)
+
             return response.json({
-                message: `Nothing to upload`
+                status: true,
+                message: `Data berita telah ditambahkan`
             })
-        }
-        /**prepare data from request */
-        let newBerita = {
-            isi_artikel: request.body.isi_artikel,
-            tumbnail: request.file.filename,
-            judul: request.file.judul
-        }
-        /**execute inserting data to tabel berita */
-        beritaModel.create(newBerita)
-            .then(result => {
-                return response.json({
-                    succes: true,
-                    data: result,
-                    message: `Berita baru berhasil ditambahkan`
-                })
-            })
-            .catch(error => {
-                return response.json({
-                    succes: false,
-                    message: error.message
-                })
-            })
-    })
+        })
+    } catch (error) {
+        return response.json({
+            status: false,
+            message: error.message
+        })
+    }
+
 }
+
 exports.updateBerita = async (request, response) => {
     upload(request, response, async error => {
         /**check if there are error when upload */

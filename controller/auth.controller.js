@@ -1,108 +1,61 @@
-// const jwt = require('jsonwebtoken')
-// const md5 = require('md5')
-// const { request, response } = require('../routes/admin.route')
+const express = require(`express`)
+const md5 = require(`md5`)
+const jwt = require(`jsonwebtoken`)
+const adminModel = require(`../models/index`).admin
 
-// /**load model of user */
-// const adminModel = require('../models/index').admin
-// async function verifyToken(token) {
-//     try {
-//         let secretKey = 'Ciboox_Authorization_Secret_JWT_Auth'
-//         let decode = jwt.verify(token, secretKey)
-//         return true
-//     } catch (error) {
-//         return false
-//     }
-// }
+const authenticate = async (request, response) => {
+    let dataLogin = {
+        username: request.body.username,
+        password: md5(request.body.password)
+    }
 
-// exports.authentication = async (request, response) => {
-//     try {
-//         let params = {
-//             username: request.body.username,
-//             password: md5(request.body.password)
-//         }
+    let dataAdmin = await adminModel.findOne({
+        where: dataLogin
+    })
 
-//         /**check user exis */
-//         let result = await adminModel.findOne(
-//             {
-//                 where: params
-//             }
-//         )
+    if (dataAdmin) {
+        let payload = JSON.stringify(dataAdmin)
 
-//         if (result) {
-//             let secretKey = 'Ciboox_Authorization_Secret_JWT_Auth'
+        let secret = `Ciboox_Authorization_Secret_JWT_Auth`
+        let token = jwt.sign(payload, secret)
 
-//             let header = {
-//                 algorithm: "HS256"
-//             }
+        return response.json({
+            success: true,
+            logged: true,
+            message: `Authentikasi berhasil`,
+            token: token,
+            data: dataAdmin
+        })
+    }
+    return response.json({
+        success: false,
+        logged: false,
+        message:`Authentikasi gagal. Username atau Password salah`
+    })
+}
 
-//             let payload = JSON.stringify(result)
+const authorize = (request, response, next) =>{
+    let headers = request.headers.authorization
 
-//             let token = jwt.sign(payload, secretKey, header)
+    let tokenKey = headers && headers.split(" ")[1]
 
-//             /**give a response */
-//             return response.json({
-//                 logged: true,
-//                 status: true,
-//                 token: token,
-//                 message: 'login berhasil',
-//                 data: result
-//             })
+    if (tokenKey == null) {
+        return response.json({
+            success:false,
+            message:`User tidak sah`
+        })
+    }
 
-//         } else {
-//             return response.json({
-//                 status:false,
-//                 message:'username atau password tidak cocok'
-//             })
+    let secret= `Ciboox_Authorization_Secret_JWT_Auth`
 
-//         }
-//     } catch(error){
-//         return response.json({
-//             status:false,
-//             message:error.message
-//         })
-//     }
-// }
-
-// exports.authorization = (roles) =>{
-//     return async function(request, response, next){
-//         try {
-//             let headers = request.headers.authorization
-
-//             let token = headers?.split(" ")[1]
-
-//             if(token == null){
-//                 return response
-//                 .status(401)
-//                 .json({
-//                     status:false,
-//                     message:`Unauthorized`
-//                 })
-//             }
-//             if (!await verifyToken(token)) {
-//                 return response
-//                 .status(401)
-//                 .json({
-//                     status:false,
-//                     message:`INVALID TOKEN`
-//                 })
-//             }
-//             let plainText = jwt.decode(token)
-
-//             if (!roles.includes(plainText.role)) {
-//                 return response
-//                 .status(403)
-//                 .json({
-//                     status:false,
-//                     message:`AKSES DITOLAK`
-//                 })
-//             }
-//             next()
-
-//         } catch (error) {
-//             return response.json({
-//                 status:false,
-//                 message:error.message
-//             })
-//         }
-//     }
-// }
+    jwt.verify(tokenKey, secret,(error,user) => {
+        if (error) {
+            return response.json({
+                success:false,
+                message:` Token tidak valid`
+            })
+        }
+    })
+    next()
+}
+ module.exports = {authenticate, authorize}

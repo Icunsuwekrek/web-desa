@@ -6,12 +6,12 @@ const cors = require(`cors`)
 app.use(cors())
 const adminRoute = require(`./routes/admin.route`)
 const beritaRoute = require(`./routes/berita.route`)
-// const authRoute = require(`./routes/auth.route`)
+const authRoute = require(`./routes/auth.route`)
 
 /**define perfix for each route */
 app.use(`/admin`, adminRoute)
 app.use(`/berita`, beritaRoute)
-// app.use( authRoute)
+app.use(`/auth`, authRoute)
 
 /**run server based on define port */
 app.listen(PORT,() =>{
