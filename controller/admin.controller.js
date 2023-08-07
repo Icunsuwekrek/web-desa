@@ -24,7 +24,7 @@ exports.findAdmin = async (request, response) => {
         where: {
             [Op.or]: [
                 { nama: { [Op.substring]: keyword } },
-                { ussername: { [Op.substring]: keyword } },
+                { username: { [Op.substring]: keyword } },
                 { alamat: { [Op.substring]: keyword } }
             ]
         }
