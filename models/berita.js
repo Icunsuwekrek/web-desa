@@ -13,14 +13,18 @@ module.exports = (sequelize, DataTypes) => {
       // define association here
     }
   }
-  berita.init({
-    isi_artikel: DataTypes.STRING,
-    tumbnail: DataTypes.STRING,
-    judul: DataTypes.STRING,
-
-  }, {
-    sequelize,
-    modelName: 'berita',
-  });
+  berita.init(
+    {
+      judul: DataTypes.STRING,
+      thumbnail: DataTypes.STRING,
+      thumbnail_id: DataTypes.STRING,
+      slug: DataTypes.STRING,
+      body: DataTypes.STRING,
+    },
+    {
+      sequelize,
+      modelName: "berita",
+    }
+  );
   return berita;
 };

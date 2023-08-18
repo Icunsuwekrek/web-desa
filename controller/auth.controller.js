@@ -1,61 +1,113 @@
-const express = require(`express`)
-const md5 = require(`md5`)
-const jwt = require(`jsonwebtoken`)
-const adminModel = require(`../models/index`).admin
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
 const authenticate = async (request, response) => {
-    let dataLogin = {
-        username: request.body.username,
-        password: md5(request.body.password)
-    }
+  const { username, password } = request.body;
 
-    let dataAdmin = await adminModel.findOne({
-        where: dataLogin
-    })
+  const dataAdmin = await adminModel.findOne({
+    where: { username },
+  });
 
-    if (dataAdmin) {
-        let payload = JSON.stringify(dataAdmin)
+  if (dataAdmin && bcrypt.compareSync(password, dataAdmin.password)) {
+    const payload = { id: dataAdmin.id, username: dataAdmin.username };
 
-        let secret = `Ciboox_Authorization_Secret_JWT_Auth`
-        let token = jwt.sign(payload, secret)
+    const accessTokenSecret = "CibooxSecret";
+    const refreshTokenSecret = "CibooxSecret";
 
-        return response.json({
-            success: true,
-            logged: true,
-            message: `Authentikasi berhasil`,
-            token: token,
-            data: dataAdmin
-        })
-    }
+    const accessToken = jwt.sign(payload, accessTokenSecret, {
+      expiresIn: "15m",
+    });
+    const refreshToken = jwt.sign(payload, refreshTokenSecret, {
+      expiresIn: "7d",
+    });
+
+    response.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
     return response.json({
+      success: true,
+      logged: true,
+      message: "Authentication successful",
+      accessToken,
+    });
+  }
+
+  return response.json({
+    success: false,
+    logged: false,
+    message: "Authentication failed. Invalid username or password",
+  });
+};
+
+const logout = (request, response) => {
+  response.clearCookie("refreshToken");
+  return response.json({
+    success: true,
+    message: "Logged out successfully",
+  });
+};
+
+const authorize = (request, response, next) => {
+  const refreshToken = request.cookies.refreshToken;
+  const refreshTokenSecret = "CibooxSecret";
+
+  if (!refreshToken) {
+    return response.json({
+      success: false,
+      message: "User not authenticated",
+    });
+  }
+
+  // Verify either the refresh token or the access token
+  const tokenToVerify = request.headers.authorization
+    ? request.headers.authorization.split(" ")[1]
+    : refreshToken;
+
+  jwt.verify(tokenToVerify, refreshTokenSecret, (error, user) => {
+    if (error) {
+      return response.json({
         success: false,
-        logged: false,
-        message:`Authentikasi gagal. Username atau Password salah`
-    })
-}
-
-const authorize = (request, response, next) =>{
-    let headers = request.headers.authorization
-
-    let tokenKey = headers && headers.split(" ")[1]
-
-    if (tokenKey == null) {
-        return response.json({
-            success:false,
-            message:`User tidak sah`
-        })
+        message: "Token not valid",
+      });
     }
 
-    let secret= `Ciboox_Authorization_Secret_JWT_Auth`
+    // Attach user information to the request for later use
+    request.user = user;
 
-    jwt.verify(tokenKey, secret,(error,user) => {
-        if (error) {
-            return response.json({
-                success:false,
-                message:` Token tidak valid`
-            })
-        }
-    })
-    next()
-}
- module.exports = {authenticate, authorize}
+    next();
+  });
+};
+
+const register = async (request, response) => {
+  const { username, password } = request.body;
+
+  // Check if the username is already taken
+  const existingAdmin = await adminModel.findOne({ where: { username } });
+  if (existingAdmin) {
+    return response.json({
+      success: false,
+      message: "Username already taken",
+    });
+  }
+
+  // Hash the password using bcrypt
+  const hashedPassword = bcrypt.hashSync(password, 10); // Salt factor of 10
+
+  // Create a new admin user
+  const newAdmin = await adminModel.create({
+    username,
+    password: hashedPassword,
+  });
+
+  return response.json({
+    success: true,
+    message: "Registration successful",
+    data: newAdmin,
+  });
+};
+
+module.exports = { authenticate, authorize, logout, register };
